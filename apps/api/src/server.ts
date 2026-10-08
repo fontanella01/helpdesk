@@ -1,6 +1,13 @@
 import { buildApp } from "./app.js";
 import { createDb } from "./db/client.js";
 
+// Local settings from apps/api/.env (copy .env.example). Real environment variables win.
+try {
+  process.loadEnvFile(".env");
+} catch {
+  // no .env file: rely on the environment
+}
+
 const jwtSecret = process.env.JWT_SECRET;
 if (!jwtSecret) {
   console.error("Set JWT_SECRET (at least 32 random characters) before starting the API.");
