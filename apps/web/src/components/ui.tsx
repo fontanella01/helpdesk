@@ -57,6 +57,17 @@ export function StatusBadge({ status }: { status: TicketStatus }) {
   return <span className={cx("inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset", STATUS_STYLE[status])}>{STATUS_LABEL[status]}</span>;
 }
 
+// "Overdue 3h" / "Due in 5h" / "Resolved", from the ticket's SLA fields.
+export function DueLabel({ ticket }: { ticket: { dueAt: string; resolvedAt: string | null; overdue: boolean } }) {
+  if (ticket.resolvedAt) return <span className="text-xs text-slate-400">Resolved</span>;
+  const diffH = (new Date(ticket.dueAt).getTime() - Date.now()) / 3_600_000;
+  const human = (h: number) => (h >= 48 ? `${Math.round(h / 24)}d` : h >= 1 ? `${Math.round(h)}h` : `${Math.max(1, Math.round(h * 60))}m`);
+  if (ticket.overdue) {
+    return <span className="text-xs font-semibold text-red-700">Overdue {human(-diffH)}</span>;
+  }
+  return <span className={cx("text-xs", diffH < 4 ? "font-semibold text-amber-700" : "text-slate-500")}>Due in {human(diffH)}</span>;
+}
+
 const PRIORITY_DOT: Record<TicketPriority, string> = {
   low: "bg-slate-400",
   medium: "bg-sky-500",

@@ -14,6 +14,20 @@ export type Ticket = {
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
+  dueAt: string;
+  resolvedAt: string | null;
+  overdue: boolean;
+};
+
+export type Dashboard = {
+  openTotal: number;
+  overdue: number;
+  dueSoon: number;
+  resolved30d: number;
+  avgResolutionHours: number | null;
+  onTimeRate30d: number | null;
+  byStatus: Partial<Record<TicketStatus, number>>;
+  openByPriority: Partial<Record<TicketPriority, number>>;
 };
 
 const TOKEN_KEY = "helpdesk_token";
@@ -49,7 +63,15 @@ export const api = {
     request<{ token: string; user: User }>("POST", "/auth/register", b),
   login: (b: { email: string; password: string }) => request<{ token: string; user: User }>("POST", "/auth/login", b),
   me: () => request<User>("GET", "/auth/me"),
-  listTickets: (status?: TicketStatus) => request<Ticket[]>("GET", `/tickets${status ? `?status=${status}` : ""}`),
+  listTickets: (f: { status?: TicketStatus; overdue?: boolean; sort?: "newest" | "due" } = {}) => {
+    const q = new URLSearchParams();
+    if (f.status) q.set("status", f.status);
+    if (f.overdue) q.set("overdue", "true");
+    if (f.sort) q.set("sort", f.sort);
+    const qs = q.toString();
+    return request<Ticket[]>("GET", `/tickets${qs ? `?${qs}` : ""}`);
+  },
+  dashboard: () => request<Dashboard>("GET", "/dashboard"),
   getTicket: (id: string) => request<Ticket>("GET", `/tickets/${id}`),
   createTicket: (b: { title: string; description: string; priority: TicketPriority }) => request<Ticket>("POST", "/tickets", b),
   updateTicket: (id: string, b: { status?: TicketStatus; priority?: TicketPriority }) => request<Ticket>("PATCH", `/tickets/${id}`, b),

@@ -45,6 +45,8 @@ export const tickets = pgTable(
     status: text("status").$type<TicketStatus>().notNull().default("open"),
     priority: text("priority").$type<TicketPriority>().notNull().default("medium"),
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

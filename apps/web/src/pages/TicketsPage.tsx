@@ -1,23 +1,24 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, PRIORITY_LABEL, STATUS_LABEL, type Ticket, type TicketPriority, type TicketStatus } from "../lib/api";
-import { Button, ErrorText, Field, Input, PriorityLabel, Select, StatusBadge, Textarea } from "../components/ui";
+import { Button, DueLabel, ErrorText, Field, Input, PriorityLabel, Select, StatusBadge, Textarea } from "../components/ui";
 
 const STATUSES = Object.keys(STATUS_LABEL) as TicketStatus[];
 const PRIORITIES = Object.keys(PRIORITY_LABEL) as TicketPriority[];
-
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+type Filter = TicketStatus | "overdue" | "";
 
 export function TicketsPage() {
+  // the filter lives in the URL (?filter=overdue), so the dashboard can link straight to it
+  const [params, setParams] = useSearchParams();
+  const filter = (params.get("filter") ?? "") as Filter;
+  const setFilter = (f: Filter) => setParams(f ? { filter: f } : {}, { replace: true });
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
-  const [filter, setFilter] = useState<TicketStatus | "">("");
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
 
   const load = () =>
     api
-      .listTickets(filter || undefined)
+      .listTickets(filter === "overdue" ? { overdue: true, sort: "due" } : { status: filter || undefined })
       .then(setTickets)
       .catch((e) => setError(e.message));
 
@@ -32,11 +33,12 @@ export function TicketsPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Tickets</h1>
-          <p className="text-sm text-slate-500">Requests from your customers, newest first.</p>
+          <p className="text-sm text-slate-500">{filter === "overdue" ? "Past their deadline, most late first." : "Requests from your customers, newest first."}</p>
         </div>
         <div className="flex w-full gap-2 sm:w-auto">
-          <Select id="status-filter" aria-label="Filter by status" value={filter} onChange={(e) => setFilter(e.target.value as TicketStatus | "")} className="min-w-0 flex-1 sm:w-48 sm:flex-none">
-            <option value="">All statuses</option>
+          <Select id="status-filter" aria-label="Filter tickets" value={filter} onChange={(e) => setFilter(e.target.value as Filter)} className="min-w-0 flex-1 sm:w-48 sm:flex-none">
+            <option value="">All tickets</option>
+            <option value="overdue">Overdue</option>
             {STATUSES.map((s) => (
               <option key={s} value={s}>
                 {STATUS_LABEL[s]}
@@ -64,7 +66,7 @@ export function TicketsPage() {
         ) : tickets.length === 0 ? (
           <div className="p-10 text-center">
             <p className="font-semibold">No tickets here yet</p>
-            <p className="text-sm text-slate-500">{filter ? "Try another status filter." : "Create the first one with “New ticket”."}</p>
+            <p className="text-sm text-slate-500">{filter === "overdue" ? "Nothing is late. Nice work." : filter ? "Try another filter." : "Create the first one with “New ticket”."}</p>
           </div>
         ) : (
           <ul className="divide-y divide-slate-100">
@@ -79,7 +81,9 @@ export function TicketsPage() {
                   <div className="flex items-center gap-3 sm:gap-4">
                     <PriorityLabel priority={t.priority} />
                     <StatusBadge status={t.status} />
-                    <span className="ml-auto text-xs tabular-nums text-slate-400 sm:w-28 sm:text-right">{fmtDate(t.createdAt)}</span>
+                    <span className="ml-auto tabular-nums sm:w-28 sm:text-right">
+                      <DueLabel ticket={t} />
+                    </span>
                   </div>
                 </Link>
               </li>

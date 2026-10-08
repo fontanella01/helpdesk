@@ -7,6 +7,7 @@ import { Layout } from "./components/Layout";
 import { AuthPage } from "./pages/AuthPage";
 import { TicketsPage } from "./pages/TicketsPage";
 import { TicketDetailPage } from "./pages/TicketDetailPage";
+import { DashboardPage } from "./pages/DashboardPage";
 
 // Only logged-in users see the app; everyone else is sent to the login page.
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -31,6 +32,7 @@ createRoot(document.getElementById("root")!).render(
           <Route element={<RequireAuth><Layout /></RequireAuth>}>
             <Route path="/tickets" element={<TicketsPage />} />
             <Route path="/tickets/:id" element={<TicketDetailPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/tickets" replace />} />
         </Routes>

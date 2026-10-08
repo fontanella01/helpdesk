@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, PRIORITY_LABEL, STATUS_LABEL, type Ticket, type TicketPriority, type TicketStatus } from "../lib/api";
-import { ErrorText, Field, PriorityLabel, Select, StatusBadge } from "../components/ui";
+import { DueLabel, ErrorText, Field, PriorityLabel, Select, StatusBadge } from "../components/ui";
 
 export function TicketDetailPage() {
   const { id = "" } = useParams();
@@ -48,6 +48,7 @@ export function TicketDetailPage() {
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge status={ticket.status} />
             <PriorityLabel priority={ticket.priority} />
+            <DueLabel ticket={ticket} />
           </div>
           <h1 className="text-2xl font-bold">{ticket.title}</h1>
           <p className="whitespace-pre-wrap text-slate-700">{ticket.description}</p>
@@ -75,6 +76,11 @@ export function TicketDetailPage() {
               ))}
             </Select>
           </Field>
+          <p className="text-xs text-slate-500">
+            Deadline: {new Date(ticket.dueAt).toLocaleString("en-US")}
+            <br />
+            Set by priority: urgent 4h, high 8h, medium 24h, low 72h.
+          </p>
           <ErrorText>{error}</ErrorText>
         </aside>
       </div>
