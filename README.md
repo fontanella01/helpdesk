@@ -1,5 +1,7 @@
 # HelpDesk
 
+[![CI](https://github.com/fontanella01/helpdesk/actions/workflows/ci.yml/badge.svg)](https://github.com/fontanella01/helpdesk/actions/workflows/ci.yml)
+
 A multi-tenant support ticket system with SLA tracking and an AI triage assistant.
 Each company gets its own workspace, its team opens and resolves tickets against deadlines,
 and an assistant suggests category, priority and a first reply for every ticket.
