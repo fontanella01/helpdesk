@@ -4,20 +4,22 @@ import { registerAuth } from "./auth/plugin.js";
 import { authRoutes } from "./routes/auth.js";
 import { ticketRoutes, type Clock } from "./routes/tickets.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
+import { createSuggester, type Suggester } from "./ai/suggest.js";
 
 // The app is built from a database (and a clock) passed in, instead of creating its own.
 // Tests use a fresh in-memory database and a fake clock to simulate time passing.
-export async function buildApp(db: Db, opts: { jwtSecret: string; logger?: boolean; now?: Clock }) {
+export async function buildApp(db: Db, opts: { jwtSecret: string; logger?: boolean; now?: Clock; suggester?: Suggester }) {
   const app = Fastify({ logger: opts.logger ?? false });
   const now = opts.now ?? (() => new Date());
+  const suggester = opts.suggester ?? createSuggester();
   await registerAuth(app, opts.jwtSecret);
 
-  app.get("/health", async () => ({ ok: true }));
+  app.get("/health", async () => ({ ok: true, ai: suggester.mode }));
   authRoutes(app, db);
 
   // register() creates encapsulated scopes: the auth hook added inside each
   // group protects only that group, not /health or /auth/*.
-  await app.register(async (scope) => ticketRoutes(scope, db, now));
+  await app.register(async (scope) => ticketRoutes(scope, db, now, suggester));
   await app.register(async (scope) => dashboardRoutes(scope, db, now));
 
   return app;

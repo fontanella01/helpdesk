@@ -1,8 +1,10 @@
 import type { FastifyInstance } from "fastify";
+import Anthropic from "@anthropic-ai/sdk";
 import { and, asc, desc, eq, inArray, isNull, lt, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
-import { tickets, TICKET_PRIORITIES, TICKET_STATUSES, type Ticket } from "../db/schema.js";
+import { tickets, TICKET_CATEGORIES, TICKET_PRIORITIES, TICKET_STATUSES, type Ticket } from "../db/schema.js";
+import type { Suggester } from "../ai/suggest.js";
 import { dueAt, isOverdue, nextResolvedAt } from "../domain/sla.js";
 
 // Request validation lives at the edge: anything invalid is rejected with 400
@@ -17,8 +19,9 @@ const updateSchema = z
   .object({
     status: z.enum(TICKET_STATUSES).optional(),
     priority: z.enum(TICKET_PRIORITIES).optional(),
+    category: z.enum(TICKET_CATEGORIES).nullable().optional(),
   })
-  .refine((v) => v.status !== undefined || v.priority !== undefined, { message: "Nothing to update" });
+  .refine((v) => v.status !== undefined || v.priority !== undefined || v.category !== undefined, { message: "Nothing to update" });
 
 const listQuery = z.object({
   status: z.enum(TICKET_STATUSES).optional(),
@@ -34,7 +37,7 @@ const withSla = (t: Ticket, now: Date) => ({ ...t, overdue: isOverdue(t, now) })
 
 // Every route requires a valid token. The organization always comes from the
 // token (req.user.org), never from the request body, query or headers.
-export function ticketRoutes(app: FastifyInstance, db: Db, now: Clock) {
+export function ticketRoutes(app: FastifyInstance, db: Db, now: Clock, suggester: Suggester) {
   app.addHook("preHandler", app.authenticate);
 
   app.get("/tickets", async (req, reply) => {
@@ -102,10 +105,32 @@ export function ticketRoutes(app: FastifyInstance, db: Db, now: Clock) {
         // a new priority means a new deadline, still counted from when the ticket was opened
         dueAt: priority !== current.priority ? dueAt(current.createdAt, priority) : current.dueAt,
         resolvedAt: nextResolvedAt(current.resolvedAt, status, t),
+        category: body.data.category === undefined ? current.category : body.data.category,
         updatedAt: t,
       })
       .where(where)
       .returning();
     return withSla(updated, t);
+  });
+
+  // Asks the assistant for a category, priority and draft reply. Read-only:
+  // the agent decides what to apply (PATCH) and what to send to the customer.
+  app.post("/tickets/:id/suggest", async (req, reply) => {
+    const params = idParam.safeParse(req.params);
+    if (!params.success) return reply.code(404).send({ error: "Ticket not found" });
+    const [ticket] = await db
+      .select()
+      .from(tickets)
+      .where(and(eq(tickets.id, params.data.id), eq(tickets.organizationId, req.user.org)));
+    if (!ticket) return reply.code(404).send({ error: "Ticket not found" });
+
+    try {
+      return await suggester.suggest({ title: ticket.title, description: ticket.description });
+    } catch (err) {
+      // Provider problems become a clear 503 for the UI; details stay in the server log.
+      req.log.error({ err }, "AI suggestion failed");
+      const status = err instanceof Anthropic.RateLimitError ? 429 : 503;
+      return reply.code(status).send({ error: "The assistant is unavailable right now. Try again in a moment." });
+    }
   });
 }

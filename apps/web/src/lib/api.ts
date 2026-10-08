@@ -3,6 +3,8 @@
 
 export type TicketStatus = "open" | "in_progress" | "waiting_customer" | "resolved" | "closed";
 export type TicketPriority = "low" | "medium" | "high" | "urgent";
+export type TicketCategory = "billing" | "technical" | "account" | "feature_request" | "other";
+export type Suggestion = { category: TicketCategory; priority: TicketPriority; reply: string; source: "ai" | "demo" };
 
 export type User = { id: string; name: string; email: string; role: "owner" | "agent"; organizationId: string };
 export type Ticket = {
@@ -17,6 +19,7 @@ export type Ticket = {
   dueAt: string;
   resolvedAt: string | null;
   overdue: boolean;
+  category: TicketCategory | null;
 };
 
 export type Dashboard = {
@@ -74,7 +77,9 @@ export const api = {
   dashboard: () => request<Dashboard>("GET", "/dashboard"),
   getTicket: (id: string) => request<Ticket>("GET", `/tickets/${id}`),
   createTicket: (b: { title: string; description: string; priority: TicketPriority }) => request<Ticket>("POST", "/tickets", b),
-  updateTicket: (id: string, b: { status?: TicketStatus; priority?: TicketPriority }) => request<Ticket>("PATCH", `/tickets/${id}`, b),
+  updateTicket: (id: string, b: { status?: TicketStatus; priority?: TicketPriority; category?: TicketCategory | null }) =>
+    request<Ticket>("PATCH", `/tickets/${id}`, b),
+  suggest: (id: string) => request<Suggestion>("POST", `/tickets/${id}/suggest`),
 };
 
 export const STATUS_LABEL: Record<TicketStatus, string> = {
@@ -90,4 +95,12 @@ export const PRIORITY_LABEL: Record<TicketPriority, string> = {
   medium: "Medium",
   high: "High",
   urgent: "Urgent",
+};
+
+export const CATEGORY_LABEL: Record<TicketCategory, string> = {
+  billing: "Billing",
+  technical: "Technical",
+  account: "Account",
+  feature_request: "Feature request",
+  other: "Other",
 };

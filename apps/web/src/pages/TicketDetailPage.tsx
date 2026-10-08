@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, PRIORITY_LABEL, STATUS_LABEL, type Ticket, type TicketPriority, type TicketStatus } from "../lib/api";
+import { api, CATEGORY_LABEL, PRIORITY_LABEL, STATUS_LABEL, type Ticket, type TicketPriority, type TicketStatus } from "../lib/api";
 import { DueLabel, ErrorText, Field, PriorityLabel, Select, StatusBadge } from "../components/ui";
+import { AiAssist } from "../components/AiAssist";
 
 export function TicketDetailPage() {
   const { id = "" } = useParams();
@@ -44,11 +45,15 @@ export function TicketDetailPage() {
       </Link>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_16rem]">
+        <div className="min-w-0 space-y-6">
         <article className="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge status={ticket.status} />
             <PriorityLabel priority={ticket.priority} />
             <DueLabel ticket={ticket} />
+            {ticket.category && (
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">{CATEGORY_LABEL[ticket.category]}</span>
+            )}
           </div>
           <h1 className="text-2xl font-bold">{ticket.title}</h1>
           <p className="whitespace-pre-wrap text-slate-700">{ticket.description}</p>
@@ -56,6 +61,8 @@ export function TicketDetailPage() {
             Opened {new Date(ticket.createdAt).toLocaleString("en-US")} · Updated {new Date(ticket.updatedAt).toLocaleString("en-US")}
           </p>
         </article>
+        <AiAssist ticket={ticket} onApplied={setTicket} />
+        </div>
 
         <aside className="h-fit space-y-4 rounded-xl border border-slate-200 bg-white p-5">
           <Field label="Status">

@@ -30,6 +30,8 @@ export const users = pgTable(
 
 export const TICKET_STATUSES = ["open", "in_progress", "waiting_customer", "resolved", "closed"] as const;
 export const TICKET_PRIORITIES = ["low", "medium", "high", "urgent"] as const;
+export const TICKET_CATEGORIES = ["billing", "technical", "account", "feature_request", "other"] as const;
+export type TicketCategory = (typeof TICKET_CATEGORIES)[number];
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 export type TicketPriority = (typeof TICKET_PRIORITIES)[number];
 
@@ -47,6 +49,7 @@ export const tickets = pgTable(
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    category: text("category").$type<TicketCategory>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
