@@ -9,6 +9,25 @@ export const organizations = pgTable("organizations", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const USER_ROLES = ["owner", "agent"] as const;
+export type UserRole = (typeof USER_ROLES)[number];
+
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    passwordHash: text("password_hash").notNull(),
+    role: text("role").$type<UserRole>().notNull().default("agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("users_org_idx").on(t.organizationId)],
+);
+
 export const TICKET_STATUSES = ["open", "in_progress", "waiting_customer", "resolved", "closed"] as const;
 export const TICKET_PRIORITIES = ["low", "medium", "high", "urgent"] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
@@ -25,6 +44,7 @@ export const tickets = pgTable(
     description: text("description").notNull(),
     status: text("status").$type<TicketStatus>().notNull().default("open"),
     priority: text("priority").$type<TicketPriority>().notNull().default("medium"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
