@@ -3,12 +3,11 @@ import { api, CATEGORY_LABEL, PRIORITY_LABEL, type Suggestion, type Ticket } fro
 import { Button, ErrorText, Textarea } from "./ui";
 
 // The assistant suggests; the agent decides. Nothing is applied or sent without a click.
-export function AiAssist({ ticket, onApplied }: { ticket: Ticket; onApplied: (t: Ticket) => void }) {
+export function AiAssist({ ticket, onApplied, onUseReply }: { ticket: Ticket; onApplied: (t: Ticket) => void; onUseReply: (text: string) => void }) {
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState<"suggest" | "apply" | null>(null);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
 
   const run = async () => {
     setBusy("suggest");
@@ -37,14 +36,10 @@ export function AiAssist({ ticket, onApplied }: { ticket: Ticket; onApplied: (t:
     }
   };
 
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(draft);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // clipboard blocked: the text is still in the box to copy by hand
-    }
+  // Moves the draft into the conversation box; the agent still reviews and sends it.
+  const useReply = () => {
+    onUseReply(draft);
+    document.getElementById("comment")?.focus();
   };
 
   const alreadyApplied = suggestion && ticket.category === suggestion.category && ticket.priority === suggestion.priority;
@@ -88,8 +83,8 @@ export function AiAssist({ ticket, onApplied }: { ticket: Ticket; onApplied: (t:
             </label>
             <Textarea id="ai-draft" value={draft} onChange={(e) => setDraft(e.target.value)} />
             <div className="flex justify-end">
-              <Button variant="ghost" onClick={copy}>
-                {copied ? "Copied" : "Copy reply"}
+              <Button variant="ghost" onClick={useReply} disabled={!draft.trim()}>
+                Use in reply
               </Button>
             </div>
           </div>

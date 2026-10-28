@@ -20,7 +20,15 @@ export type Ticket = {
   resolvedAt: string | null;
   overdue: boolean;
   category: TicketCategory | null;
+  assigneeId: string | null;
 };
+
+export type TicketEventType = "created" | "status" | "priority" | "category" | "assignee";
+export type TimelineItem =
+  | { kind: "comment"; id: string; body: string; internal: boolean; createdAt: string; authorName: string | null }
+  | { kind: "event"; id: string; type: TicketEventType; fromValue: string | null; toValue: string | null; createdAt: string; authorName: string | null };
+export type Comment = Extract<TimelineItem, { kind: "comment" }>;
+export type AssigneeFilter = "me" | "none";
 
 export type Dashboard = {
   openTotal: number;
@@ -31,6 +39,7 @@ export type Dashboard = {
   onTimeRate30d: number | null;
   byStatus: Partial<Record<TicketStatus, number>>;
   openByPriority: Partial<Record<TicketPriority, number>>;
+  openByAssignee: { assigneeId: string | null; name: string | null; open: number; overdue: number }[];
 };
 
 const TOKEN_KEY = "helpdesk_token";
@@ -66,9 +75,11 @@ export const api = {
     request<{ token: string; user: User }>("POST", "/auth/register", b),
   login: (b: { email: string; password: string }) => request<{ token: string; user: User }>("POST", "/auth/login", b),
   me: () => request<User>("GET", "/auth/me"),
-  listTickets: (f: { status?: TicketStatus; overdue?: boolean; sort?: "newest" | "due" } = {}) => {
+  listUsers: () => request<User[]>("GET", "/users"),
+  listTickets: (f: { status?: TicketStatus; overdue?: boolean; sort?: "newest" | "due"; assignee?: AssigneeFilter } = {}) => {
     const q = new URLSearchParams();
     if (f.status) q.set("status", f.status);
+    if (f.assignee) q.set("assignee", f.assignee);
     if (f.overdue) q.set("overdue", "true");
     if (f.sort) q.set("sort", f.sort);
     const qs = q.toString();
@@ -77,8 +88,10 @@ export const api = {
   dashboard: () => request<Dashboard>("GET", "/dashboard"),
   getTicket: (id: string) => request<Ticket>("GET", `/tickets/${id}`),
   createTicket: (b: { title: string; description: string; priority: TicketPriority }) => request<Ticket>("POST", "/tickets", b),
-  updateTicket: (id: string, b: { status?: TicketStatus; priority?: TicketPriority; category?: TicketCategory | null }) =>
+  updateTicket: (id: string, b: { status?: TicketStatus; priority?: TicketPriority; category?: TicketCategory | null; assigneeId?: string | null }) =>
     request<Ticket>("PATCH", `/tickets/${id}`, b),
+  timeline: (id: string) => request<TimelineItem[]>("GET", `/tickets/${id}/timeline`),
+  addComment: (id: string, b: { body: string; internal: boolean }) => request<Comment>("POST", `/tickets/${id}/comments`, b),
   suggest: (id: string) => request<Suggestion>("POST", `/tickets/${id}/suggest`),
 };
 

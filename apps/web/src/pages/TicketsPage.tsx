@@ -1,11 +1,17 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { api, PRIORITY_LABEL, STATUS_LABEL, type Ticket, type TicketPriority, type TicketStatus } from "../lib/api";
+import { api, PRIORITY_LABEL, STATUS_LABEL, type Ticket, type TicketPriority, type TicketStatus, type User } from "../lib/api";
 import { Button, DueLabel, ErrorText, Field, Input, PriorityLabel, Select, StatusBadge, Textarea } from "../components/ui";
 
 const STATUSES = Object.keys(STATUS_LABEL) as TicketStatus[];
 const PRIORITIES = Object.keys(PRIORITY_LABEL) as TicketPriority[];
-type Filter = TicketStatus | "overdue" | "";
+type Filter = TicketStatus | "overdue" | "mine" | "unassigned" | "";
+
+const DESCRIPTION: Partial<Record<Filter, string>> = {
+  overdue: "Past their deadline, most late first.",
+  mine: "Assigned to you, newest first.",
+  unassigned: "Nobody is responsible yet, newest first.",
+};
 
 export function TicketsPage() {
   // the filter lives in the URL (?filter=overdue), so the dashboard can link straight to it
@@ -15,12 +21,24 @@ export function TicketsPage() {
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
 
+  const query = () => {
+    if (filter === "overdue") return { overdue: true, sort: "due" as const };
+    if (filter === "mine") return { assignee: "me" as const };
+    if (filter === "unassigned") return { assignee: "none" as const };
+    return { status: filter || undefined };
+  };
   const load = () =>
     api
-      .listTickets(filter === "overdue" ? { overdue: true, sort: "due" } : { status: filter || undefined })
+      .listTickets(query())
       .then(setTickets)
       .catch((e) => setError(e.message));
+
+  useEffect(() => {
+    api.listUsers().then(setUsers).catch(() => {});
+  }, []);
+  const assigneeName = (id: string | null) => users.find((u) => u.id === id)?.name;
 
   useEffect(() => {
     setTickets(null);
@@ -33,11 +51,13 @@ export function TicketsPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Tickets</h1>
-          <p className="text-sm text-slate-500">{filter === "overdue" ? "Past their deadline, most late first." : "Requests from your customers, newest first."}</p>
+          <p className="text-sm text-slate-500">{DESCRIPTION[filter] ?? "Requests from your customers, newest first."}</p>
         </div>
         <div className="flex w-full gap-2 sm:w-auto">
           <Select id="status-filter" aria-label="Filter tickets" value={filter} onChange={(e) => setFilter(e.target.value as Filter)} className="min-w-0 flex-1 sm:w-48 sm:flex-none">
             <option value="">All tickets</option>
+            <option value="mine">Assigned to me</option>
+            <option value="unassigned">Unassigned</option>
             <option value="overdue">Overdue</option>
             {STATUSES.map((s) => (
               <option key={s} value={s}>
@@ -66,7 +86,7 @@ export function TicketsPage() {
         ) : tickets.length === 0 ? (
           <div className="p-10 text-center">
             <p className="font-semibold">No tickets here yet</p>
-            <p className="text-sm text-slate-500">{filter === "overdue" ? "Nothing is late. Nice work." : filter ? "Try another filter." : "Create the first one with “New ticket”."}</p>
+            <p className="text-sm text-slate-500">{filter === "overdue" ? "Nothing is late. Nice work." : filter === "mine" ? "Nothing assigned to you right now." : filter ? "Try another filter." : "Create the first one with “New ticket”."}</p>
           </div>
         ) : (
           <ul className="divide-y divide-slate-100">
@@ -75,7 +95,10 @@ export function TicketsPage() {
                 <Link to={`/tickets/${t.id}`} className="flex flex-col gap-2 px-5 py-4 hover:bg-slate-50 sm:flex-row sm:items-center sm:gap-4">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold">{t.title}</p>
-                    <p className="truncate text-sm text-slate-500">{t.description}</p>
+                    <p className="truncate text-sm text-slate-500">
+                      {t.assigneeId ? <span className="font-medium text-slate-600">{assigneeName(t.assigneeId) ?? "Assigned"} · </span> : null}
+                      {t.description}
+                    </p>
                   </div>
                   {/* on phones the badges drop below the title instead of squeezing it */}
                   <div className="flex items-center gap-3 sm:gap-4">

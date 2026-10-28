@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { organizations, users } from "../db/schema.js";
@@ -76,6 +76,12 @@ export function authRoutes(app: FastifyInstance, db: Db) {
     const [user] = await db.select().from(users).where(eq(users.id, req.user.sub));
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
     return publicUser(user);
+  });
+
+  // Team members of the caller's organization, used to pick an assignee.
+  app.get("/users", { preHandler: app.authenticate }, async (req) => {
+    const rows = await db.select().from(users).where(eq(users.organizationId, req.user.org)).orderBy(asc(users.name));
+    return rows.map(publicUser);
   });
 
   // The owner adds agents to their own organization.

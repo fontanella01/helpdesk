@@ -46,6 +46,32 @@ function Bars<K extends string>({ title, data, labels, order }: { title: string;
   );
 }
 
+// Open workload per person, on the same scale; overdue counts are called out in red.
+function Workload({ rows }: { rows: Dashboard["openByAssignee"] }) {
+  const max = Math.max(1, ...rows.map((r) => r.open));
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <h2 className="mb-4 text-sm font-semibold text-slate-700">Open tickets by assignee</h2>
+      {rows.length === 0 ? (
+        <p className="text-sm text-slate-500">No open tickets.</p>
+      ) : (
+        <ul className="space-y-3">
+          {rows.map((r) => (
+            <li key={r.assigneeId ?? "none"} className="grid grid-cols-[9rem_1fr_2rem_5.5rem] items-center gap-3 text-sm">
+              <span className={r.assigneeId ? "truncate text-slate-600" : "truncate italic text-slate-500"}>{r.name ?? "Unassigned"}</span>
+              <span className="h-2 rounded-full bg-slate-100">
+                <span className="block h-2 rounded-full bg-brand-500" style={{ width: `${(r.open / max) * 100}%` }} />
+              </span>
+              <span className="text-right tabular-nums font-semibold">{r.open}</span>
+              <span className={r.overdue ? "text-xs font-semibold text-red-700" : "text-xs text-slate-400"}>{r.overdue ? `${r.overdue} overdue` : "on time"}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export function DashboardPage() {
   const [d, setD] = useState<Dashboard | null>(null);
   const [error, setError] = useState("");
@@ -79,6 +105,8 @@ export function DashboardPage() {
         <Bars title="All tickets by status" data={d.byStatus} labels={STATUS_LABEL} order={Object.keys(STATUS_LABEL) as TicketStatus[]} />
         <Bars title="Open tickets by priority" data={d.openByPriority} labels={PRIORITY_LABEL} order={["urgent", "high", "medium", "low"] as TicketPriority[]} />
       </div>
+
+      <Workload rows={d.openByAssignee} />
     </div>
   );
 }

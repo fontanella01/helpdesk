@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, index, boolean } from "drizzle-orm/pg-core";
 
 // Each customer company is an organization (the "tenant").
 // Every piece of data belongs to exactly one organization, and every query
@@ -50,10 +50,53 @@ export const tickets = pgTable(
     dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
     category: text("category").$type<TicketCategory>(),
+    assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("tickets_org_status_idx").on(t.organizationId, t.status)],
+  (t) => [index("tickets_org_status_idx").on(t.organizationId, t.status), index("tickets_org_assignee_idx").on(t.organizationId, t.assigneeId)],
 );
 
 export type Ticket = typeof tickets.$inferSelect;
+
+// Replies to the customer and internal notes that only the team sees.
+export const ticketComments = pgTable(
+  "ticket_comments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => tickets.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    internal: boolean("internal").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("ticket_comments_ticket_idx").on(t.ticketId, t.createdAt)],
+);
+
+export const TICKET_EVENT_TYPES = ["created", "status", "priority", "category", "assignee"] as const;
+export type TicketEventType = (typeof TICKET_EVENT_TYPES)[number];
+
+// Append-only history: what changed, from what to what, and who did it.
+export const ticketEvents = pgTable(
+  "ticket_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => tickets.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    type: text("type").$type<TicketEventType>().notNull(),
+    fromValue: text("from_value"),
+    toValue: text("to_value"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("ticket_events_ticket_idx").on(t.ticketId, t.createdAt)],
+);

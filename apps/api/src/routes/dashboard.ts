@@ -44,6 +44,20 @@ export function dashboardRoutes(app: FastifyInstance, db: Db, now: Clock) {
       `)
     ).rows as Row[];
 
+    // Open workload per team member, plus the unassigned pile (assignee_id IS NULL).
+    const byAssignee = (
+      await db.execute(sql`
+        SELECT t.assignee_id, u.name,
+               count(*) AS open,
+               count(*) FILTER (WHERE t.due_at < ${t}) AS overdue
+        FROM tickets t
+        LEFT JOIN users u ON u.id = t.assignee_id
+        WHERE t.organization_id = ${org} AND t.resolved_at IS NULL
+        GROUP BY t.assignee_id, u.name
+        ORDER BY count(*) DESC
+      `)
+    ).rows as Row[];
+
     const resolved30 = num(summary.resolved_30d) ?? 0;
     const avg = num(summary.avg_resolution_hours);
     return {
@@ -55,6 +69,12 @@ export function dashboardRoutes(app: FastifyInstance, db: Db, now: Clock) {
       onTimeRate30d: resolved30 ? Math.round(((num(summary.resolved_on_time_30d) ?? 0) / resolved30) * 100) : null,
       byStatus: Object.fromEntries(byStatus.map((r) => [r.status, Number(r.n)])),
       openByPriority: Object.fromEntries(openByPriority.map((r) => [r.priority, Number(r.n)])),
+      openByAssignee: byAssignee.map((r) => ({
+        assigneeId: (r.assignee_id as string | null) ?? null,
+        name: (r.name as string | null) ?? null,
+        open: Number(r.open),
+        overdue: Number(r.overdue),
+      })),
     };
   });
 }
