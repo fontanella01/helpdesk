@@ -6,6 +6,7 @@ type AuthState = {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (b: { organizationName: string; name: string; email: string; password: string }) => Promise<void>;
+  enterDemo: () => Promise<void>;
   logout: () => void;
 };
 
@@ -35,6 +36,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     register: async (b) => {
       const res = await api.register(b);
+      tokenStore.set(res.token);
+      setUser(res.user);
+    },
+    enterDemo: async () => {
+      const res = await api.demo();
       tokenStore.set(res.token);
       setUser(res.user);
     },

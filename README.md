@@ -67,12 +67,16 @@ npm run dev:api    # http://localhost:3333
 npm run dev:web    # http://localhost:5173
 ```
 
-Open http://localhost:5173 and create a workspace.
+Open http://localhost:5173 and create a workspace. With `DEMO_MODE=true` in `apps/api/.env`, the login page also shows **Try the demo**, which opens a sample company with tickets, a team and conversations.
+
+## Deploying
+
+`render.yaml` deploys the public demo on Render (free plan) as one service: the API also serves the built web app (`WEB_DIR`) and answers under `/api`. The embedded PostgreSQL starts empty on every boot and the sample company is recreated, so visitors always see a clean demo. For a real installation, set `DATABASE_URL` to a PostgreSQL server.
 
 ## Tests
 
 ```bash
-npm test          # 39 tests: auth, tenant isolation, tickets, assignment, conversation, history, SLA, dashboard, AI
+npm test          # 42 tests: auth, tenant isolation, tickets, assignment, conversation, history, SLA, dashboard, AI, demo
 npm run typecheck
 ```
 

@@ -75,6 +75,8 @@ export const api = {
     request<{ token: string; user: User }>("POST", "/auth/register", b),
   login: (b: { email: string; password: string }) => request<{ token: string; user: User }>("POST", "/auth/login", b),
   me: () => request<User>("GET", "/auth/me"),
+  config: () => request<{ demo: boolean }>("GET", "/auth/config"),
+  demo: () => request<{ token: string; user: User }>("POST", "/auth/demo"),
   listUsers: () => request<User[]>("GET", "/users"),
   listTickets: (f: { status?: TicketStatus; overdue?: boolean; sort?: "newest" | "due"; assignee?: AssigneeFilter } = {}) => {
     const q = new URLSearchParams();

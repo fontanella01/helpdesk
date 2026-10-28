@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { organizations, users } from "../db/schema.js";
 import { hashPassword, verifyPassword } from "../auth/password.js";
+import { DEMO_EMAIL } from "../demo.js";
 
 const email = z.string().trim().toLowerCase().max(254).pipe(z.email());
 const password = z.string().min(8).max(200);
@@ -34,7 +35,19 @@ const isUniqueViolation = (err: unknown) => {
   return e?.code === "23505" || e?.cause?.code === "23505";
 };
 
-export function authRoutes(app: FastifyInstance, db: Db) {
+export function authRoutes(app: FastifyInstance, db: Db, opts: { demo?: boolean } = {}) {
+  // What the login screen needs to know before anyone signs in.
+  app.get("/auth/config", async () => ({ demo: Boolean(opts.demo) }));
+
+  // One click into the sample company, only when DEMO_MODE is on.
+  app.post("/auth/demo", async (_req, reply) => {
+    if (!opts.demo) return reply.code(404).send({ error: "Demo is disabled" });
+    const [user] = await db.select().from(users).where(eq(users.email, DEMO_EMAIL));
+    if (!user) return reply.code(503).send({ error: "Demo data is not ready yet" });
+    const token = app.jwt.sign({ sub: user.id, org: user.organizationId, role: user.role });
+    return { token, user: publicUser(user) };
+  });
+
   // Creates a new organization and its first user (the owner).
   app.post("/auth/register", async (req, reply) => {
     const body = registerSchema.safeParse(req.body);

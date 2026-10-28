@@ -1,10 +1,32 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { api } from "../lib/api";
 import { Button, ErrorText, Field, Input } from "../components/ui";
 
 export function AuthPage({ mode }: { mode: "login" | "register" }) {
-  const { login, register } = useAuth();
+  const { login, register, enterDemo } = useAuth();
+  const [demo, setDemo] = useState(false);
+
+  useEffect(() => {
+    api
+      .config()
+      .then((c) => setDemo(c.demo))
+      .catch(() => {});
+  }, []);
+
+  const tryDemo = async () => {
+    setError("");
+    setBusy(true);
+    try {
+      await enterDemo();
+      navigate("/tickets");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
   const navigate = useNavigate();
   const [form, setForm] = useState({ organizationName: "", name: "", email: "", password: "" });
   const [error, setError] = useState("");
@@ -46,6 +68,15 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
             <h1 className="text-2xl font-bold">{isLogin ? "Sign in" : "Create your workspace"}</h1>
             <p className="text-sm text-slate-500">{isLogin ? "Welcome back." : "You will be the owner and can invite your team later."}</p>
           </div>
+
+          {isLogin && demo && (
+            <div className="space-y-3 rounded-xl border border-brand-100 bg-brand-50 p-4">
+              <p className="text-sm text-slate-700">Look around a sample company with tickets, a team and a conversation history. No sign-up needed.</p>
+              <Button type="button" className="w-full" disabled={busy} onClick={tryDemo}>
+                Try the demo
+              </Button>
+            </div>
+          )}
 
           {!isLogin && (
             <>
