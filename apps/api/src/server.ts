@@ -1,6 +1,6 @@
 import { buildApp } from "./app.js";
 import { createDb } from "./db/client.js";
-import { seedDemo } from "./demo.js";
+import { resetData, seedDemo } from "./demo.js";
 
 // Local settings from apps/api/.env (copy .env.example). Real environment variables win.
 try {
@@ -24,6 +24,7 @@ const { db } = await createDb({
 const demo = process.env.DEMO_MODE === "true";
 const app = await buildApp(db, { jwtSecret, logger: true, demo, webDir: process.env.WEB_DIR });
 // the sample company behind the "Try the demo" button
+if (demo && process.env.DEMO_RESET_ON_START === "true") await resetData(db);
 if (demo) await seedDemo(app, db);
 const port = Number(process.env.PORT ?? 3333);
 await app.listen({ port, host: "0.0.0.0" });

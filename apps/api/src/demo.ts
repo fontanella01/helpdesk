@@ -84,6 +84,12 @@ const SEED: Seed[] = [
   },
 ];
 
+// Empties every table (the schema stays). Only for the public demo: on a permanent
+// database it makes each boot start from a clean sample company. Never on real data.
+export async function resetData(db: Db) {
+  await db.execute(sql`TRUNCATE ticket_events, ticket_comments, tickets, users, organizations CASCADE`);
+}
+
 // Creates the sample company used by the "Try the demo" button. Goes through the
 // real routes (so the data follows every rule), then moves dates into the past so
 // the SLA clock and the dashboard have something to show.

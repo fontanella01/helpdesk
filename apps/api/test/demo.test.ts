@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
 import { createDb } from "../src/db/client.js";
-import { seedDemo } from "../src/demo.js";
+import { resetData, seedDemo } from "../src/demo.js";
 import { TEST_SECRET } from "./helpers.js";
 
 let cleanup: (() => Promise<void>) | null = null;
@@ -45,6 +45,16 @@ describe("demo mode", () => {
     const outage = tickets.find((t: { title: string }) => t.title.startsWith("Internet down"));
     const timeline = (await app.inject({ method: "GET", url: `/tickets/${outage.id}/timeline`, headers: auth })).json();
     expect(timeline.some((i: { kind: string; internal?: boolean }) => i.kind === "comment" && i.internal)).toBe(true);
+  });
+
+  it("starts over from the sample company after a reset", async () => {
+    const { app, db } = await start(true);
+    await seedDemo(app, db);
+    await resetData(db);
+    expect(await seedDemo(app, db)).toBe(true);
+    const login = await app.inject({ method: "POST", url: "/auth/demo" });
+    const list = await app.inject({ method: "GET", url: "/tickets", headers: { authorization: `Bearer ${login.json().token}` } });
+    expect(list.json()).toHaveLength(8);
   });
 
   it("answers the API under /api too, as the web app calls it in production", async () => {
