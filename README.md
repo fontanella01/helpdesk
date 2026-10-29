@@ -54,6 +54,7 @@ In production the same code connects to any PostgreSQL through `DATABASE_URL`.
 - **History is written with the change.** A ticket update and its history entries are saved in one transaction, so the timeline never shows a change that did not happen (or misses one that did). Unchanged fields produce no entry.
 - **Validation in two layers.** Zod rejects bad input at the edge; `CHECK` constraints in the database guarantee that even a bug cannot store an invalid status, priority or category.
 - **Passwords:** salted scrypt hashes and constant-time comparison. Login gives the same answer and takes about the same time for an unknown email and a wrong password.
+- **Hardened for a public demo.** Rate limits per visitor (10 login attempts per 15 minutes, 10 sign-ups per hour, 20 AI suggestions per minute, a general cap on everything else), counted on the real IP behind the proxy so a faked `X-Forwarded-For` does not reset them. A daily cap on AI calls (`AI_DAILY_LIMIT`, 200 on the demo) falls back to the free rules. Security headers with a strict CSP, and unexpected errors answer with a generic message while the details go to the server log.
 - **Business rules as pure functions.** SLA rules have no database or clock inside. The clock is injected, so tests move time forward instead of waiting.
 - **Aggregation in SQL.** The dashboard uses `count(*) FILTER (...)` and `avg(...)` in PostgreSQL instead of loading tickets into Node.
 - **AI behind an interface.** Routes depend on a `Suggester`; the Claude implementation uses structured output validated by Zod, so the model cannot return a category outside the list. Ticket text is treated as untrusted data in the prompt, and a refusal or unparseable answer falls back to the rule-based suggestion. Tests never call the real API.
@@ -78,7 +79,7 @@ Open http://localhost:5173 and create a workspace. With `DEMO_MODE=true` in `app
 ## Tests
 
 ```bash
-npm test          # 42 tests: auth, tenant isolation, tickets, assignment, conversation, history, SLA, dashboard, AI, demo
+npm test          # 48 tests: auth, tenant isolation, tickets, assignment, conversation, history, SLA, dashboard, AI, demo, rate limits, security headers, error messages, AI cap
 npm run typecheck
 ```
 
@@ -92,12 +93,14 @@ Every test starts a fresh in-memory PostgreSQL. CI runs typecheck, tests and the
 | `DATABASE_URL` | no | PostgreSQL connection; PGlite in `./.data` when absent |
 | `ANTHROPIC_API_KEY` | no | Enables the Claude assistant; demo mode when absent |
 | `AI_MODEL` | no | Claude model id (default `claude-opus-5-5`) |
+| `AI_DAILY_LIMIT` | no | Most AI suggestions per day; past it the free rules answer (default 200 with `DEMO_MODE`, no cap otherwise) |
+| `TRUST_PROXY_HOPS` | no | Proxies in front of the API (1 on Render), so limits count the visitor and not the proxy |
 
 ## Next steps
 
 - A customer-facing portal where customers open tickets and see public replies
 - httpOnly cookie session instead of a token in `localStorage`
-- Rate limiting on login
+- Rate-limit counters and the AI cap in a shared store (Redis) to run more than one instance
 - Email notifications for overdue tickets
 
 ---

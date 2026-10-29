@@ -5,6 +5,7 @@ import type { Db } from "../db/client.js";
 import { organizations, users } from "../db/schema.js";
 import { hashPassword, verifyPassword } from "../auth/password.js";
 import { DEMO_EMAIL } from "../demo.js";
+import { LIMITS } from "../security.js";
 
 const email = z.string().trim().toLowerCase().max(254).pipe(z.email());
 const password = z.string().min(8).max(200);
@@ -40,7 +41,7 @@ export function authRoutes(app: FastifyInstance, db: Db, opts: { demo?: boolean 
   app.get("/auth/config", async () => ({ demo: Boolean(opts.demo) }));
 
   // One click into the sample company, only when DEMO_MODE is on.
-  app.post("/auth/demo", async (_req, reply) => {
+  app.post("/auth/demo", { config: { rateLimit: LIMITS.demoLogin } }, async (_req, reply) => {
     if (!opts.demo) return reply.code(404).send({ error: "Demo is disabled" });
     const [user] = await db.select().from(users).where(eq(users.email, DEMO_EMAIL));
     if (!user) return reply.code(503).send({ error: "Demo data is not ready yet" });
@@ -49,7 +50,7 @@ export function authRoutes(app: FastifyInstance, db: Db, opts: { demo?: boolean 
   });
 
   // Creates a new organization and its first user (the owner).
-  app.post("/auth/register", async (req, reply) => {
+  app.post("/auth/register", { config: { rateLimit: LIMITS.register } }, async (req, reply) => {
     const body = registerSchema.safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: z.prettifyError(body.error) });
 
@@ -72,7 +73,7 @@ export function authRoutes(app: FastifyInstance, db: Db, opts: { demo?: boolean 
     }
   });
 
-  app.post("/auth/login", async (req, reply) => {
+  app.post("/auth/login", { config: { rateLimit: LIMITS.login } }, async (req, reply) => {
     const body = loginSchema.safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: z.prettifyError(body.error) });
 

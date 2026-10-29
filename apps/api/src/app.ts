@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import type { Db } from "./db/client.js";
 import { registerAuth } from "./auth/plugin.js";
+import { registerSecurity } from "./security.js";
 import { authRoutes } from "./routes/auth.js";
 import { ticketRoutes, type Clock } from "./routes/tickets.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
@@ -11,16 +12,29 @@ import { createSuggester, type Suggester } from "./ai/suggest.js";
 // Tests use a fresh in-memory database and a fake clock to simulate time passing.
 export async function buildApp(
   db: Db,
-  opts: { jwtSecret: string; logger?: boolean; now?: Clock; suggester?: Suggester; demo?: boolean; webDir?: string },
+  opts: {
+    jwtSecret: string;
+    logger?: boolean;
+    now?: Clock;
+    suggester?: Suggester;
+    demo?: boolean;
+    webDir?: string;
+    // proxies in front of the app (Render has one), so req.ip is the visitor and not
+    // the proxy; rate limits are counted per req.ip
+    trustProxy?: number | false;
+  },
 ) {
   const app = Fastify({
     logger: opts.logger ?? false,
+    // trust only the given number of hops, so a visitor cannot fake their IP in X-Forwarded-For
+    trustProxy: opts.trustProxy ? (_address: string, hop: number) => hop < (opts.trustProxy as number) : false,
     // the web app calls /api/...; in development Vite strips the prefix, in
     // production (one service serving both) this does the same
     rewriteUrl: (req) => (req.url ?? "/").replace(/^\/api(?=\/|$)/, "") || "/",
   });
   const now = opts.now ?? (() => new Date());
   const suggester = opts.suggester ?? createSuggester();
+  await registerSecurity(app);
   await registerAuth(app, opts.jwtSecret);
 
   app.get("/health", async () => ({ ok: true, ai: suggester.mode }));

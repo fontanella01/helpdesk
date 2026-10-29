@@ -15,6 +15,7 @@ import {
   type TicketEventType,
 } from "../db/schema.js";
 import type { Suggester } from "../ai/suggest.js";
+import { LIMITS } from "../security.js";
 import { dueAt, isOverdue, nextResolvedAt } from "../domain/sla.js";
 
 // Request validation lives at the edge: anything invalid is rejected with 400
@@ -255,7 +256,7 @@ export function ticketRoutes(app: FastifyInstance, db: Db, now: Clock, suggester
 
   // Asks the assistant for a category, priority and draft reply. Read-only:
   // the agent decides what to apply (PATCH) and what to send to the customer.
-  app.post("/tickets/:id/suggest", async (req, reply) => {
+  app.post("/tickets/:id/suggest", { config: { rateLimit: LIMITS.suggest } }, async (req, reply) => {
     const params = idParam.safeParse(req.params);
     if (!params.success) return reply.code(404).send({ error: "Ticket not found" });
     const [ticket] = await db

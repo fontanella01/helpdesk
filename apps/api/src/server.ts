@@ -1,6 +1,8 @@
 import { buildApp } from "./app.js";
 import { createDb } from "./db/client.js";
 import { resetData, seedDemo } from "./demo.js";
+import { createSuggester, demoSuggester } from "./ai/suggest.js";
+import { withDailyLimit } from "./ai/budget.js";
 
 // Local settings from apps/api/.env (copy .env.example). Real environment variables win.
 try {
@@ -22,7 +24,19 @@ const { db } = await createDb({
 });
 
 const demo = process.env.DEMO_MODE === "true";
-const app = await buildApp(db, { jwtSecret, logger: true, demo, webDir: process.env.WEB_DIR });
+// A daily cap on AI suggestions (AI_DAILY_LIMIT; 200 by default on the public demo),
+// so visitors cannot run up the API bill. Past it, the free keyword rules answer.
+const aiLimit = process.env.AI_DAILY_LIMIT ? Number(process.env.AI_DAILY_LIMIT) : demo ? 200 : Infinity;
+const baseSuggester = createSuggester();
+const suggester = baseSuggester.mode === "ai" ? withDailyLimit(baseSuggester, demoSuggester, aiLimit, () => new Date()) : baseSuggester;
+const app = await buildApp(db, {
+  jwtSecret,
+  logger: true,
+  demo,
+  suggester,
+  webDir: process.env.WEB_DIR,
+  trustProxy: process.env.TRUST_PROXY_HOPS ? Number(process.env.TRUST_PROXY_HOPS) : false,
+});
 // the sample company behind the "Try the demo" button
 if (demo && process.env.DEMO_RESET_ON_START === "true") await resetData(db);
 if (demo) await seedDemo(app, db);
