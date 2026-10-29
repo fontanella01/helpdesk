@@ -94,7 +94,7 @@ Every test starts a fresh in-memory PostgreSQL. CI runs typecheck, tests and the
 | `ANTHROPIC_API_KEY` | no | Enables the Claude assistant; demo mode when absent |
 | `AI_MODEL` | no | Claude model id (default `claude-opus-5-5`) |
 | `AI_DAILY_LIMIT` | no | Most AI suggestions per day; past it the free rules answer (default 200 with `DEMO_MODE`, no cap otherwise) |
-| `TRUST_PROXY_HOPS` | no | Proxies in front of the API (1 on Render), so limits count the visitor and not the proxy |
+| `TRUST_PROXY_HOPS` | no | Proxies in front of the API (3 on Render: Cloudflare, load balancer, instance proxy), so limits count the visitor and not the proxy |
 
 ## Next steps
 

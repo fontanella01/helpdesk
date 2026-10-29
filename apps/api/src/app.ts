@@ -19,7 +19,7 @@ export async function buildApp(
     suggester?: Suggester;
     demo?: boolean;
     webDir?: string;
-    // proxies in front of the app (Render has one), so req.ip is the visitor and not
+    // proxies in front of the app (three on Render), so req.ip is the visitor and not
     // the proxy; rate limits are counted per req.ip
     trustProxy?: number | false;
   },
