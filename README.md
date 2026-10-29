@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/fontanella01/helpdesk/actions/workflows/ci.yml/badge.svg)](https://github.com/fontanella01/helpdesk/actions/workflows/ci.yml)
 
+**Live demo:** https://helpdesk-demo-l6j8.onrender.com (click **Try the demo**; the free server may take up to a minute to wake up)
+
 A multi-tenant support ticket system with SLA tracking and an AI triage assistant.
 Each company gets its own workspace, its team opens, assigns and resolves tickets against deadlines,
 talks to the customer and leaves internal notes on each ticket, and an assistant suggests
